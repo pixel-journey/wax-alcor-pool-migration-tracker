@@ -7,5 +7,5 @@
 | movedShare + invariants | unit |
 | fromLegs / allocationBps / movedBar | unit |
 | reachedThreshold / compareShares / movedToReachBps | unit |
-| shareState | unit |
+| parseLegs / shareState | unit |
 | Live Alcor | out of scope |

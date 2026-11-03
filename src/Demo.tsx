@@ -18,7 +18,9 @@ import {
   reachedThreshold,
 } from "./moved";
 import { GLOSSARY, MOVED_MYTHS } from "./myths";
+import { parseLegs } from "./parse";
 import { decodeShareState, encodeShareState } from "./shareState";
+import { WORKED_EXAMPLES } from "./workedExamples";
 
 const LS_KEY = "pxj-moved-share-v1";
 
@@ -70,11 +72,9 @@ export function Demo() {
   const effectiveMoved = useMemo(() => {
     try {
       if (useLegs) {
-        return legsText
-          .split(/[,\s]+/)
-          .filter(Boolean)
-          .map((x) => BigInt(x))
-          .reduce((a, b) => a + b, 0n);
+        const parsed = parseLegs(legsText);
+        if (!parsed.ok) return null;
+        return parsed.legs.reduce((a, b) => a + b, 0n);
       }
       return BigInt(moved.trim() || "0");
     } catch {
@@ -86,11 +86,9 @@ export function Demo() {
     try {
       const L = BigInt(left.trim() || "0");
       if (useLegs) {
-        const legs = legsText
-          .split(/[,\s]+/)
-          .filter(Boolean)
-          .map((x) => BigInt(x));
-        return fromLegs(L, legs);
+        const parsed = parseLegs(legsText);
+        if (!parsed.ok) return parsed;
+        return fromLegs(L, parsed.legs);
       }
       return movedShare(L, BigInt(moved.trim() || "0"));
     } catch {
@@ -162,6 +160,12 @@ export function Demo() {
     }
   }, [showTiers]);
 
+  const applyAddMoved = () => {
+    if (!reach || !reach.ok || useLegs) return;
+    const next = (effectiveMoved ?? 0n) + reach.addMoved;
+    setMoved(next.toString());
+  };
+
   const copyShare = async () => {
     const qs = encodeShareState({
       left,
@@ -184,6 +188,7 @@ export function Demo() {
 
   return (
     <main className="wrap">
+      <style>{`@media print { button, .no-print { display: none !important; } }`}</style>
       <p className="kicker">Educational reference · Pixel Journey</p>
       <h1>Share of a balance that has moved</h1>
       <p className="lede">
@@ -192,6 +197,7 @@ export function Demo() {
       </p>
 
       <section
+        className="no-print"
         style={{
           marginBottom: "1.5rem",
           padding: "1rem",
@@ -212,7 +218,7 @@ export function Demo() {
         ))}
       </section>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
+      <div className="no-print" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem" }}>
         {SCENARIOS.map((s) => (
           <button
             key={s.id}
@@ -228,7 +234,7 @@ export function Demo() {
         ))}
       </div>
 
-      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.75rem" }}>
+      <label className="no-print" style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.75rem" }}>
         <input
           type="checkbox"
           checked={useLegs}
@@ -275,7 +281,7 @@ export function Demo() {
             {share.noneMoved ? " · none moved" : ""}
           </p>
           <p style={{ fontFamily: "ui-monospace, monospace" }}>{bar}</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div className="no-print" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             <button
               type="button"
               onClick={() =>
@@ -308,9 +314,14 @@ export function Demo() {
             <button type="button" onClick={() => void copyShare()}>
               Copy share URL
             </button>
+            <button type="button" onClick={() => window.print()}>
+              Print
+            </button>
           </div>
           {shareMsg && (
-            <p style={{ fontSize: "0.85rem", opacity: 0.8 }}>{shareMsg}</p>
+            <p className="no-print" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
+              {shareMsg}
+            </p>
           )}
         </>
       ) : (
@@ -345,14 +356,21 @@ export function Demo() {
           />
         </label>
         {reach && reach.ok && (
-          <p>
-            Add moved ≥ <strong>{reach.addMoved.toString()}</strong> (left fixed)
-          </p>
+          <>
+            <p>
+              Add moved ≥ <strong>{reach.addMoved.toString()}</strong> (left fixed)
+            </p>
+            {!useLegs && reach.addMoved > 0n && (
+              <button className="no-print" type="button" onClick={applyAddMoved}>
+                Apply add to moved field
+              </button>
+            )}
+          </>
         )}
         {reach && !reach.ok && <p>{reach.reason}</p>}
       </section>
 
-      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
+      <label className="no-print" style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
         <input
           type="checkbox"
           checked={compare}
@@ -387,7 +405,7 @@ export function Demo() {
         </p>
       )}
 
-      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
+      <label className="no-print" style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
         <input
           type="checkbox"
           checked={showTiers}
@@ -421,14 +439,40 @@ export function Demo() {
         </>
       )}
 
-      <Cases />
+      <section style={{ marginTop: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem" }}>Worked examples</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>left</th>
+              <th>moved</th>
+              <th>bps</th>
+              <th>leftBps</th>
+            </tr>
+          </thead>
+          <tbody>
+            {WORKED_EXAMPLES.map((row) => (
+              <tr key={`${row.left}-${row.moved}`}>
+                <td>{row.left}</td>
+                <td>{row.moved}</td>
+                <td>{row.bps}</td>
+                <td>{row.leftBps}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <div className="no-print">
+        <Cases />
+      </div>
 
       <section style={{ marginTop: "1.5rem" }}>
         <h2 style={{ fontSize: "1rem" }}>Runbook</h2>
         <ol style={{ fontSize: "0.9rem" }}>
-          <li>Enter left-behind and moved (or sum legs).</li>
+          <li>Enter left-behind and moved (or sum legs via parseLegs).</li>
           <li>Read bps / leftBps / meter.</li>
-          <li>Optional: threshold, target planner, compare, tier sample, export, share URL.</li>
+          <li>Optional: threshold, apply target planner, compare, tiers, export, print, share.</li>
           <li>Do not treat this as live Alcor TVL or a completed on-chain migration.</li>
         </ol>
       </section>
@@ -447,8 +491,8 @@ export function Demo() {
         </dl>
       </section>
 
-      <p style={{ marginTop: "2rem", fontSize: "0.85rem", opacity: 0.75 }}>
-        URL overrides localStorage when present. See EDUCATION.md · SECURITY.md
+      <p className="no-print" style={{ marginTop: "2rem", fontSize: "0.85rem", opacity: 0.75 }}>
+        URL overrides localStorage when present. See EDUCATION.md · POLICY.md · SECURITY.md
       </p>
     </main>
   );

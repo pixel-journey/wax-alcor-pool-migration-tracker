@@ -1,12 +1,12 @@
-# Moved share — deeper pass
+# Moved share — deeper again
 
 **Updated:** 2026-11-03
 
 | Area | Notes |
 |------|-------|
-| Engine | reachedThreshold, compareShares, movedToReachBps, bpsSum |
-| UI | threshold, planner, compare, CSV, share URL, Cases |
-| Tests | new helpers + shareState |
+| parseLegs | dedicated parser + tests |
+| UI | apply planner to moved, worked table, print |
+| Docs | EDUCATION table, POLICY freeze |
 
 ```bash
 npm test && npm run dev
