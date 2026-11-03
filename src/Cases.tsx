@@ -11,11 +11,15 @@ const CASES = [
   },
   {
     title: "Multi-leg",
-    body: "fromLegs sums moved amounts then applies the same formula.",
+    body: "parseLegs + fromLegs sum moved amounts then apply the same formula.",
   },
   {
-    title: "Tier allocation",
-    body: "allocationBps floors each bucket; bpsSum may be under 10000.",
+    title: "Tier allocation dust",
+    body: "Three equal buckets of 1 → bpsSum 9999, not 10000.",
+  },
+  {
+    title: "Planner",
+    body: "movedToReachBps with left fixed tells how much more must move to hit a target.",
   },
   {
     title: "Not live Alcor",
