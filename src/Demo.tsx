@@ -1,15 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { downloadText, exportMovedMarkdown } from "./exportReport";
+import { useEffect, useMemo, useState } from "react";
+import { Cases } from "./Cases";
+import {
+  downloadText,
+  exportMovedCsv,
+  exportMovedMarkdown,
+} from "./exportReport";
 import { SAMPLE_TIERS, SCENARIOS } from "./fixtures";
 import {
   allocationBps,
+  compareShares,
   fromLegs,
   movedBar,
   movedShare,
+  movedToReachBps,
+  reachedThreshold,
 } from "./moved";
 import { GLOSSARY, MOVED_MYTHS } from "./myths";
+import { decodeShareState, encodeShareState } from "./shareState";
+
+const LS_KEY = "pxj-moved-share-v1";
 
 export function Demo() {
   const [left, setLeft] = useState("25");
@@ -17,37 +28,125 @@ export function Demo() {
   const [useLegs, setUseLegs] = useState(false);
   const [legsText, setLegsText] = useState("50, 25");
   const [showTiers, setShowTiers] = useState(false);
+  const [minBps, setMinBps] = useState("7000");
+  const [targetBps, setTargetBps] = useState("9000");
+  const [compare, setCompare] = useState(false);
+  const [leftB, setLeftB] = useState("50");
+  const [movedB, setMovedB] = useState("50");
+  const [shareMsg, setShareMsg] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const fromUrl = decodeShareState(window.location.search);
+    if (fromUrl.left || fromUrl.moved) {
+      if (fromUrl.left) setLeft(fromUrl.left);
+      if (fromUrl.moved) setMoved(fromUrl.moved);
+      if (fromUrl.useLegs) {
+        setUseLegs(true);
+        setLegsText(fromUrl.legsText ?? "");
+      }
+      if (fromUrl.showTiers) setShowTiers(true);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw) as { left?: string; moved?: string };
+      if (p.left) setLeft(p.left);
+      if (p.moved) setMoved(p.moved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ left, moved }));
+    } catch {
+      /* ignore */
+    }
+  }, [left, moved]);
+
+  const effectiveMoved = useMemo(() => {
+    try {
+      if (useLegs) {
+        return legsText
+          .split(/[,\s]+/)
+          .filter(Boolean)
+          .map((x) => BigInt(x))
+          .reduce((a, b) => a + b, 0n);
+      }
+      return BigInt(moved.trim() || "0");
+    } catch {
+      return null;
+    }
+  }, [useLegs, legsText, moved]);
 
   const share = useMemo(() => {
     try {
+      const L = BigInt(left.trim() || "0");
       if (useLegs) {
         const legs = legsText
           .split(/[,\s]+/)
           .filter(Boolean)
           .map((x) => BigInt(x));
-        return fromLegs(BigInt(left.trim() || "0"), legs);
+        return fromLegs(L, legs);
       }
-      return movedShare(BigInt(left.trim() || "0"), BigInt(moved.trim() || "0"));
+      return movedShare(L, BigInt(moved.trim() || "0"));
     } catch {
       return { ok: false as const, reason: "Enter non-negative integers" };
     }
   }, [left, moved, useLegs, legsText]);
 
   const bar = useMemo(() => {
+    if (effectiveMoved === null) return "";
     try {
-      if (useLegs) {
-        const legs = legsText
-          .split(/[,\s]+/)
-          .filter(Boolean)
-          .map((x) => BigInt(x));
-        const sum = legs.reduce((a, b) => a + b, 0n);
-        return movedBar(BigInt(left.trim() || "0"), sum);
-      }
-      return movedBar(BigInt(left.trim() || "0"), BigInt(moved.trim() || "0"));
+      return movedBar(BigInt(left.trim() || "0"), effectiveMoved);
     } catch {
       return "";
     }
-  }, [left, moved, useLegs, legsText]);
+  }, [left, effectiveMoved]);
+
+  const threshold = useMemo(() => {
+    if (effectiveMoved === null) return null;
+    try {
+      return reachedThreshold(
+        BigInt(left.trim() || "0"),
+        effectiveMoved,
+        BigInt(minBps.trim() || "0")
+      );
+    } catch {
+      return null;
+    }
+  }, [left, effectiveMoved, minBps]);
+
+  const reach = useMemo(() => {
+    if (effectiveMoved === null) return null;
+    try {
+      return movedToReachBps(
+        BigInt(left.trim() || "0"),
+        effectiveMoved,
+        BigInt(targetBps.trim() || "0")
+      );
+    } catch {
+      return null;
+    }
+  }, [left, effectiveMoved, targetBps]);
+
+  const cmp = useMemo(() => {
+    if (!compare || effectiveMoved === null) return null;
+    try {
+      return compareShares(
+        { left: BigInt(left.trim() || "0"), moved: effectiveMoved },
+        {
+          left: BigInt(leftB.trim() || "0"),
+          moved: BigInt(movedB.trim() || "0"),
+        }
+      );
+    } catch {
+      return null;
+    }
+  }, [compare, left, effectiveMoved, leftB, movedB]);
 
   const tiers = useMemo(() => {
     if (!showTiers) return null;
@@ -62,6 +161,26 @@ export function Demo() {
       return null;
     }
   }, [showTiers]);
+
+  const copyShare = async () => {
+    const qs = encodeShareState({
+      left,
+      moved,
+      useLegs,
+      legsText,
+      showTiers,
+    });
+    const path =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}?${qs}`
+        : `?${qs}`;
+    try {
+      await navigator.clipboard.writeText(path);
+      setShareMsg("Share URL copied");
+    } catch {
+      setShareMsg(path);
+    }
+  };
 
   return (
     <main className="wrap">
@@ -156,23 +275,119 @@ export function Demo() {
             {share.noneMoved ? " · none moved" : ""}
           </p>
           <p style={{ fontFamily: "ui-monospace, monospace" }}>{bar}</p>
-          <button
-            type="button"
-            onClick={() =>
-              downloadText(
-                "moved-share.md",
-                exportMovedMarkdown(left, useLegs ? legsText : moved, share)
-              )
-            }
-          >
-            Download MD
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            <button
+              type="button"
+              onClick={() =>
+                downloadText(
+                  "moved-share.md",
+                  exportMovedMarkdown(left, useLegs ? legsText : moved, share)
+                )
+              }
+            >
+              Download MD
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                downloadText(
+                  "moved-share.csv",
+                  exportMovedCsv({
+                    left,
+                    moved: effectiveMoved?.toString() ?? moved,
+                    total: share.total.toString(),
+                    bps: share.bps.toString(),
+                    leftBps: share.leftBps.toString(),
+                  }),
+                  "text/csv;charset=utf-8"
+                )
+              }
+            >
+              Download CSV
+            </button>
+            <button type="button" onClick={() => void copyShare()}>
+              Copy share URL
+            </button>
+          </div>
+          {shareMsg && (
+            <p style={{ fontSize: "0.85rem", opacity: 0.8 }}>{shareMsg}</p>
+          )}
         </>
       ) : (
         <p>{share.reason}</p>
       )}
 
-      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1.5rem" }}>
+      <section style={{ marginTop: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem" }}>Threshold</h2>
+        <label style={{ display: "block", marginBottom: "0.5rem" }}>
+          Min moved bps
+          <input
+            value={minBps}
+            onChange={(e) => setMinBps(e.target.value)}
+            style={{ display: "block", width: "100%", marginTop: "0.25rem" }}
+          />
+        </label>
+        {threshold && threshold.ok && (
+          <p>
+            {threshold.met ? "Met" : "Not met"} at {threshold.bps.toString()} bps
+          </p>
+        )}
+      </section>
+
+      <section style={{ marginTop: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem" }}>Moved still needed for target bps</h2>
+        <label style={{ display: "block", marginBottom: "0.5rem" }}>
+          Target bps
+          <input
+            value={targetBps}
+            onChange={(e) => setTargetBps(e.target.value)}
+            style={{ display: "block", width: "100%", marginTop: "0.25rem" }}
+          />
+        </label>
+        {reach && reach.ok && (
+          <p>
+            Add moved ≥ <strong>{reach.addMoved.toString()}</strong> (left fixed)
+          </p>
+        )}
+        {reach && !reach.ok && <p>{reach.reason}</p>}
+      </section>
+
+      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
+        <input
+          type="checkbox"
+          checked={compare}
+          onChange={(e) => setCompare(e.target.checked)}
+        />
+        Compare against a second pair
+      </label>
+      {compare && (
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>
+            B left
+            <input
+              value={leftB}
+              onChange={(e) => setLeftB(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: "0.25rem" }}
+            />
+          </label>
+          <label style={{ display: "block" }}>
+            B moved
+            <input
+              value={movedB}
+              onChange={(e) => setMovedB(e.target.value)}
+              style={{ display: "block", width: "100%", marginTop: "0.25rem" }}
+            />
+          </label>
+        </div>
+      )}
+      {cmp && cmp.ok && (
+        <p style={{ fontSize: "0.9rem" }}>
+          A {cmp.a.bps.toString()} bps · B {cmp.b.bps.toString()} bps · Δ{" "}
+          {cmp.bpsDelta.toString()}
+        </p>
+      )}
+
+      <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
         <input
           type="checkbox"
           checked={showTiers}
@@ -181,27 +396,44 @@ export function Demo() {
         Sample fee-tier allocation (static numbers)
       </label>
       {tiers && tiers.ok && (
-        <table>
-          <thead>
-            <tr>
-              <th>Bucket</th>
-              <th>Amount</th>
-              <th>bps</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tiers.rows.map((r) => (
-              <tr key={r.label}>
-                <td>{r.label}</td>
-                <td>{r.amount.toString()}</td>
-                <td>{r.bps.toString()}</td>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>Bucket</th>
+                <th>Amount</th>
+                <th>bps</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {tiers.rows.map((r) => (
+                <tr key={r.label}>
+                  <td>{r.label}</td>
+                  <td>{r.amount.toString()}</td>
+                  <td>{r.bps.toString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: "0.85rem" }}>
+            bpsSum {tiers.bpsSum.toString()} (may be &lt; 10000 after floors)
+          </p>
+        </>
       )}
 
-      <section style={{ marginTop: "2rem" }}>
+      <Cases />
+
+      <section style={{ marginTop: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem" }}>Runbook</h2>
+        <ol style={{ fontSize: "0.9rem" }}>
+          <li>Enter left-behind and moved (or sum legs).</li>
+          <li>Read bps / leftBps / meter.</li>
+          <li>Optional: threshold, target planner, compare, tier sample, export, share URL.</li>
+          <li>Do not treat this as live Alcor TVL or a completed on-chain migration.</li>
+        </ol>
+      </section>
+
+      <section style={{ marginTop: "1.5rem" }}>
         <h2 style={{ fontSize: "1rem" }}>Glossary</h2>
         <dl>
           {GLOSSARY.map((g) => (
@@ -216,7 +448,7 @@ export function Demo() {
       </section>
 
       <p style={{ marginTop: "2rem", fontSize: "0.85rem", opacity: 0.75 }}>
-        See EDUCATION.md · POLICY.md · SECURITY.md
+        URL overrides localStorage when present. See EDUCATION.md · SECURITY.md
       </p>
     </main>
   );

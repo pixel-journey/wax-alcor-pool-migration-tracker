@@ -21,9 +21,27 @@ export function exportMovedMarkdown(
   ].join("\n");
 }
 
-export function downloadText(filename: string, content: string): void {
+export function exportMovedCsv(row: {
+  left: string;
+  moved: string;
+  total: string;
+  bps: string;
+  leftBps: string;
+}): string {
+  return [
+    "left,moved,total,bps,left_bps",
+    `${row.left},${row.moved},${row.total},${row.bps},${row.leftBps}`,
+    "",
+  ].join("\n");
+}
+
+export function downloadText(
+  filename: string,
+  content: string,
+  mime = "text/plain;charset=utf-8"
+): void {
   if (typeof document === "undefined") return;
-  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

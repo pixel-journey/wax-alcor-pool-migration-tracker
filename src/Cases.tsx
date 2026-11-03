@@ -1,39 +1,39 @@
 "use client";
 
-import { USE_CASES } from "./usecases";
+const CASES = [
+  {
+    title: "Three-quarters moved",
+    body: "left 25, moved 75 → 7500 bps. Arguments only.",
+  },
+  {
+    title: "Fully moved",
+    body: "left 0 → fullyMoved, 10000 bps.",
+  },
+  {
+    title: "Multi-leg",
+    body: "fromLegs sums moved amounts then applies the same formula.",
+  },
+  {
+    title: "Tier allocation",
+    body: "allocationBps floors each bucket; bpsSum may be under 10000.",
+  },
+  {
+    title: "Not live Alcor",
+    body: "No fee-tier graph or pool TVL is fetched in this package.",
+  },
+] as const;
 
 export function Cases() {
   return (
-    <section style={{ maxWidth: 760, margin: "0 auto", padding: "1.5rem 1.2rem 3rem", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
-      <h2>Queries and unsigned transactions</h2>
-      <p>
-        Built here, not sent. A transaction has authorizations and no signatures. Where this feature has no
-        action of its own, the query is the chain example.
-      </p>
-      {USE_CASES.map((item) => (
-        <article key={item.title}>
-          <h3>{item.title}</h3>
-          <p>{item.detail}</p>
-          <p>
-            <code>{item.request.method}</code> {item.request.url}
-          </p>
-          {item.request.body ? (
-            <pre style={{ overflow: "auto" }}>
-              <code>{JSON.stringify(item.request.body, null, 2)}</code>
-            </pre>
-          ) : null}
-          {item.transaction ? (
-            <>
-              <p>{item.transaction.note}</p>
-              <pre style={{ overflow: "auto" }}>
-                <code>{JSON.stringify(item.transaction.actions, null, 2)}</code>
-              </pre>
-            </>
-          ) : (
-            <p>No transaction. This use case does not invent an action.</p>
-          )}
-        </article>
-      ))}
+    <section aria-label="Teaching cases" style={{ marginTop: "2rem" }}>
+      <h2 style={{ fontSize: "1rem" }}>Cases</h2>
+      <ul style={{ paddingLeft: "1.2rem", fontSize: "0.9rem" }}>
+        {CASES.map((c) => (
+          <li key={c.title} style={{ marginBottom: "0.5rem" }}>
+            <strong>{c.title}.</strong> {c.body}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

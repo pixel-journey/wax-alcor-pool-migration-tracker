@@ -7,11 +7,8 @@ export type ShareOk = {
   ok: true;
   total: bigint;
   bps: bigint;
-  /** 10000 - bps (floor share still left) */
   leftBps: bigint;
-  /** true when moved === total */
   fullyMoved: boolean;
-  /** true when moved === 0 */
   noneMoved: boolean;
 };
 
@@ -50,7 +47,6 @@ export function assertShareInvariants(
   if (s.noneMoved && moved !== 0n) throw new Error("noneMoved flag");
 }
 
-/** Sum legs then measure (educational multi-hop totals). */
 export function fromLegs(
   leftBehind: bigint,
   movedLegs: readonly bigint[]
@@ -70,13 +66,18 @@ export function fromLegs(
 
 export type TierLabel = string;
 
-/**
- * Allocate `total` across labeled buckets; report bps per bucket (floor).
- * Remainders of the bps split are not redistributed (educational).
- */
 export function allocationBps(
   amounts: readonly { label: TierLabel; amount: bigint }[]
-): { ok: false; reason: string } | { ok: true; total: bigint; rows: { label: string; amount: bigint; bps: bigint }[] } {
+): {
+  ok: false;
+  reason: string;
+} | {
+  ok: true;
+  total: bigint;
+  rows: { label: string; amount: bigint; bps: bigint }[];
+  /** Sum of floored bps — may be < 10000 */
+  bpsSum: bigint;
+} {
   if (amounts.length < 1 || amounts.length > 16) {
     return { ok: false, reason: "pass 1 to 16 buckets" };
   }
@@ -94,14 +95,70 @@ export function allocationBps(
     amount: a.amount,
     bps: (a.amount * 10_000n) / total,
   }));
-  return { ok: true, total, rows };
+  const bpsSum = rows.reduce((acc, r) => acc + r.bps, 0n);
+  return { ok: true, total, rows, bpsSum };
 }
 
-/** ASCII bar for moved bps (0–10 blocks). */
 export function movedBar(leftBehind: bigint, moved: bigint): string {
   const s = movedShare(leftBehind, moved);
   if (!s.ok) return s.reason;
   const filled = Number(s.bps / 1_000n);
   const clamped = Math.max(0, Math.min(10, filled));
   return `[${"#".repeat(clamped)}${".".repeat(10 - clamped)}] ${s.bps.toString()} bps moved`;
+}
+
+/** Whether moved share has reached a target bps threshold. */
+export function reachedThreshold(
+  leftBehind: bigint,
+  moved: bigint,
+  minBps: bigint
+): { ok: false; reason: string } | { ok: true; met: boolean; bps: bigint } {
+  if (minBps < 0n || minBps > 10_000n) {
+    return { ok: false, reason: "minBps must be 0..10000" };
+  }
+  const s = movedShare(leftBehind, moved);
+  if (!s.ok) return s;
+  return { ok: true, met: s.bps >= minBps, bps: s.bps };
+}
+
+/** Compare two independent (left, moved) pairs. */
+export function compareShares(
+  a: { left: bigint; moved: bigint },
+  b: { left: bigint; moved: bigint }
+): { ok: false; reason: string } | { ok: true; a: ShareOk; b: ShareOk; bpsDelta: bigint } {
+  const sa = movedShare(a.left, a.moved);
+  const sb = movedShare(b.left, b.moved);
+  if (!sa.ok) return sa;
+  if (!sb.ok) return sb;
+  return { ok: true, a: sa, b: sb, bpsDelta: sa.bps - sb.bps };
+}
+
+/** Amount still needed to reach target moved bps (assuming left fixed). */
+export function movedToReachBps(
+  leftBehind: bigint,
+  currentMoved: bigint,
+  targetBps: bigint
+): { ok: false; reason: string } | { ok: true; addMoved: bigint } {
+  if (leftBehind < 0n || currentMoved < 0n) {
+    return { ok: false, reason: "amounts must be non-negative" };
+  }
+  if (targetBps < 0n || targetBps > 10_000n) {
+    return { ok: false, reason: "targetBps must be 0..10000" };
+  }
+  if (targetBps === 10_000n) {
+    // need leftBehind → 0, so move everything still left
+    return { ok: true, addMoved: leftBehind };
+  }
+  if (targetBps === 0n) {
+    return { ok: true, addMoved: 0n };
+  }
+  // need moved / (left + moved) >= target/10000
+  // 10000 * moved >= target * (left + moved)
+  // 10000 * moved - target * moved >= target * left
+  // moved * (10000 - target) >= target * left
+  // moved >= ceil(target * left / (10000 - target))
+  const denom = 10_000n - targetBps;
+  const needMoved = (targetBps * leftBehind + denom - 1n) / denom;
+  const add = needMoved > currentMoved ? needMoved - currentMoved : 0n;
+  return { ok: true, addMoved: add };
 }
