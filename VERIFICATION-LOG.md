@@ -1,8 +1,9 @@
 # Verification Log
 
-**Updated:** 2026-10-31
+**Updated:** 2026-11-03
 
 | Claim | Status |
 | --- | --- |
-| movedShare | unit |
+| movedShare + invariants | unit |
+| fromLegs / allocationBps / movedBar | unit |
 | Live Alcor | out of scope |

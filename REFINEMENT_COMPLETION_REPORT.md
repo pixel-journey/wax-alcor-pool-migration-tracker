@@ -1,12 +1,13 @@
-# Moved share
+# Full-thrust — moved share lab
 
-**Updated:** 2026-10-31
+**Updated:** 2026-11-03
 
-| Scope | Notes |
+| Area | Notes |
 |------|-------|
-| Core | movedShare |
-| Education | myths, POLICY, interactive demo |
+| Engine | expanded movedShare, fromLegs, allocationBps, movedBar |
+| Docs | EDUCATION, ARCHITECTURE, POLICY, SECURITY |
+| UI | scenarios, legs, tier table, MD export |
 
 ```bash
-npm test
+npm test && npm run dev
 ```

@@ -1,5 +1,15 @@
 # Architecture
 
-Divide the moved amount by the sum, in basis points.
+```
+leftBehind, moved (or legs)
+        │
+        ▼
+   movedShare → total, bps, leftBps, flags
+        │
+        ├── fromLegs
+        ├── allocationBps
+        ├── movedBar
+        └── exportMovedMarkdown
+```
 
-The page calls the same functions as the tests. It does not open a socket and it does not sign.
+Honesty boundary: no Alcor API, no wallet, no broadcast.
