@@ -1,24 +1,41 @@
-# wax-alcor-pool-migration-tracker
+# A moved share in basis points — not an Alcor tracker
 
-> **Trust label:** `educational-reference`  
-> **Status:** Full-thrust + polish (2026-11-03)  
+> **Trust:** `educational-reference`  
 > **Catalog:** [wax-ecosystem-blueprint-catalog](https://github.com/pixel-journey/wax-ecosystem-blueprint-catalog)
 
-**One-sentence goal:** Teach **moved / (left + moved)** in basis points — with pure, unit-tested helpers — without claiming to track live Alcor fee-tier migrations.
+**One-sentence goal:** Teach `floor(moved * 10000 / (left + moved))`, multi-leg sums, floored bucket splits, and how much more must move to hit a target — from arguments, not from Alcor.
 
-The repository name is historical. The code is a share / allocation lab.
+**Real code:** `npm test`. **Does not** read a pool, a fee tier, or a chain.
 
-## What is actually in the repo
+The course is [EDUCATION.md](EDUCATION.md).
+
+## What is true (executed)
+
+| Rule | Result |
+| --- | --- |
+| `movedShare(25n, 75n)` | 7500 bps |
+| left 0, moved 50 | fully moved, 10000 |
+| left 50, moved 0 | none moved, 0 |
+| both zero or negative | refused |
+| `fromLegs(25n, [50n, 25n])` | 7500 |
+| buckets 20 / 50 / 30 | middle row 5000; sum ≤ 10000 |
+| three 1-unit buckets | bpsSum 9999 |
+| `reachedThreshold(25n, 75n, 7000n)` | met |
+| compare 75/25 against 50/50 | delta 2500 |
+| `movedToReachBps(100n, 0n, 5000n)` | add 100 |
+| already at 7500, target 7000 | add 0 |
+| target 10000 with 40 left | add 40 |
+
+## What is in the repo
 
 | Piece | Role |
-|-------|------|
-| `src/moved.ts` | `movedShare`, legs, allocation, threshold, compare, planner, bar |
-| `src/parse.ts` | `parseLegs` |
-| `src/*.test.ts` | Executed claims + sample grid |
-| `src/Demo.tsx` | Scenarios, planner, compare, tiers, export, share URL, print |
-| `EDUCATION.md` / `ARCHITECTURE.md` / `POLICY.md` / `SECURITY.md` | Teaching + boundaries |
+| --- | --- |
+| `src/moved.ts` | share, legs, allocation, threshold, reach |
+| `src/moved.test.ts` | the executed rule |
+| `src/Demo.tsx` | interactive pairs |
+| Docs | EDUCATION · POLICY · SECURITY · VERIFICATION-LOG |
 
-## Quick start
+## Run
 
 ```bash
 npm install
@@ -26,17 +43,20 @@ npm test
 npm run dev
 ```
 
-```ts
-import { movedShare } from "./src/moved";
+## Best practice and the opposite
 
-movedShare(25n, 75n);
-// bps: 7500, leftBps: 2500
-```
+**Do** pass bigint amounts you already fetched.  
+**Do** expect floor dust on multi-bucket splits.  
+**Do** treat labels as text.
+
+**Do not** call this a live Sankey of Alcor fee tiers.  
+**Do not** require `allocationBps` to sum to 10000.  
+**Do not** infer "rotated" versus "exited" from a single moved number.
 
 ## Related
 
-- `wax-lp-behavioral-profiler` · `wax-lp-fee-lifecycle-auditor` · `wax-lp-impermanent-loss-heat-map`
-
-## License
+- `wax-lp-fee-lifecycle-auditor`
+- `wax-lp-impermanent-loss-heat-map`
+- `px-treasury-incoming-fee-splitter` (the lab that *does* require 10000)
 
 MIT — Pixel Journey
