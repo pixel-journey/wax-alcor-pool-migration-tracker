@@ -1,7 +1,7 @@
 # A moved share in basis points — not an Alcor tracker
 
 > **Trust:** `educational-reference`  
-> **Catalog:** [wax-ecosystem-blueprint-catalog](https://github.com/pixel-journey/wax-ecosystem-blueprint-catalog)
+> **Catalog:** `wax-ecosystem-blueprint-catalog` (private index; not this public course)
 
 **One-sentence goal:** Teach `floor(moved * 10000 / (left + moved))`, multi-leg sums, floored bucket splits, and how much more must move to hit a target — from arguments, not from Alcor.
 
@@ -55,8 +55,10 @@ npm run dev
 
 ## Related
 
-- `wax-lp-fee-lifecycle-auditor`
-- `wax-lp-impermanent-loss-heat-map`
+- [wax-lp-fee-lifecycle-auditor](https://github.com/pixel-journey/wax-lp-fee-lifecycle-auditor) — labels after a collect, not a pool read
+- [wax-lp-impermanent-loss-heat-map](https://github.com/pixel-journey/wax-lp-impermanent-loss-heat-map) — full-range IL, not this moved-share
+- [dust floors](https://github.com/pixel-journey/px-token-dust-truncation-visualizer) — why three 1-unit buckets sum to 9999
+- Alcor itself is a different system. This file does not call it: [alcor-exchange](https://github.com/alcor-exchange)
 - `px-treasury-incoming-fee-splitter` (the lab that *does* require 10000)
 
 MIT — Pixel Journey
