@@ -1,21 +1,37 @@
-# Security notes
+# Security — pool migration moved-share
 
-**Trust label:** `educational-reference`
+## Closed in product rules / tests
 
-## What this package does not do
+| Issue | Behavior |
+| --- | --- |
+| Pure measure path | no Alcor / Hyperion / Atomic calls |
+| Sample grid | left × moved arithmetic locked |
+| Share URLs | demo numbers only — no session tokens |
 
-- No private keys, wallets, or signing
-- No Alcor / Hyperion / Atomic calls on the measure path
-- No claim that sample fee-tier labels are live TVL
-- No swap routing or migration execution
+## Not closed (production)
 
-## Host-product guidance
+| Concern | Guidance |
+| --- | --- |
+| Live TVL / fee tiers | Sample labels are not live TVL |
+| Swap routing / migration execution | Not this product |
+| localStorage | last left/moved on same origin; clear on shared devices |
+| Authorization | `bps` / `met` thresholds are UI arithmetic, not permission to move liquidity |
 
-- Treat `bps` and `met` thresholds as **UI arithmetic**, not authorization to move liquidity.
-- Share URLs only encode demo numbers — not session or auth tokens.
-- localStorage holds last left/moved on the same origin; clear on shared devices.
-- Prefer **WharfKit** (not eosjs / Anchor Link) if a future host adds intentional chain actions.
+## Attack angles
 
-## Supply-chain
+1. Treating moved-share as authorization to migrate.  
+2. Claiming sample fee-tier labels are live TVL.  
+3. Encoding session tokens into share URLs.  
+4. Auto-executing a migration from a threshold flag.
 
-Correctness is locked by pure unit tests (including a small left×moved grid). Pin dependencies for any public deploy.
+## Honesty limits
+
+No private keys, wallets, or signing. No pool read on the measure path.
+
+| Sibling | Distinction |
+| --- | --- |
+| [LP fee lifecycle](https://github.com/pixel-journey/wax-lp-fee-lifecycle-auditor) | compound/extract/idle after collect |
+| [IL heat map](https://github.com/pixel-journey/wax-lp-impermanent-loss-heat-map) | Full-range IL |
+| [range efficiency](https://github.com/pixel-journey/wax-alcor-v2-range-efficiency-backtester) | Truncating fee product |
+
+Prefer **WharfKit** if a host later signs. [docs.wax.io](https://docs.wax.io/).
